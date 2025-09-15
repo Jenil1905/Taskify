@@ -12,7 +12,8 @@ const api = axios.create({
 // The JWT is automatically sent in a cookie with this request.
 export const fetchTasks = async (category = '') => {
     try {
-        const url = category ? `/tasks?category=${category}` : '/tasks';
+        // Corrected URL to match the backend route: GET /tasks/get-task
+        const url = category ? `/tasks/get-task?category=${category}` : '/tasks/get-task';
         const response = await api.get(url);
         return response.data;
     } catch (error) {
@@ -25,7 +26,8 @@ export const fetchTasks = async (category = '') => {
 // The JWT is automatically sent in a cookie with this request.
 export const createTask = async (taskData) => {
     try {
-        const response = await api.post('/tasks', taskData);
+        // Corrected URL to match the backend route: POST /tasks/add-task
+        const response = await api.post('/tasks/add-task', taskData);
         return response.data;
     } catch (error) {
         console.error('Error creating task:', error.response?.data || error.message);
@@ -37,18 +39,21 @@ export const createTask = async (taskData) => {
 // The JWT is automatically sent in a cookie with this request.
 export const updateTask = async (taskId, updatedData) => {
     try {
+        // This URL is already correct: PATCH /tasks/:id
         const response = await api.patch(`/tasks/${taskId}`, updatedData);
         return response.data;
     } catch (error) {
         console.error('Error updating task:', error.response?.data || error.message);
         throw error;
     }
+    
 };
 
 // Delete a task.
 // The JWT is automatically sent in a cookie with this request.
 export const deleteTask = async (taskId) => {
     try {
+        // This URL is already correct: DELETE /tasks/:id
         const response = await api.delete(`/tasks/${taskId}`);
         return response.data;
     } catch (error) {

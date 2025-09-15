@@ -1,10 +1,11 @@
+// src/controllers/task.controller.js
 const Task = require('../model/task.model.js');
 
 
 exports.getTasks = async (req, res) => {
   try {
-    const userId = req.user.id; // User ID from authenticated request
-    const { category } = req.query; // Optional filter by category
+    const userId = req.userId; // Corrected: Use req.userId
+    const { category } = req.query; 
     
     let tasks;
     if (category) {
@@ -13,7 +14,6 @@ exports.getTasks = async (req, res) => {
       tasks = await Task.find({ userId }).sort({ createdAt: -1 });
     }
     
-    // Format the response to match the API design
     const formattedTasks = tasks.map(task => ({
       id: task._id,
       title: task.title,
@@ -39,7 +39,7 @@ exports.createTask = async (req, res) => {
     }
 
     const newTask = new Task({
-      userId: req.user.id, 
+      userId: req.userId, // Corrected: Use req.userId
       title,
       description,
       category,
@@ -68,7 +68,7 @@ exports.updateTask = async (req, res) => {
     const { id } = req.params;
     const { isDone } = req.body;
     
-    const task = await Task.findOne({ _id: id, userId: req.user.id });
+    const task = await Task.findOne({ _id: id, userId: req.userId }); // Corrected: Use req.userId
 
     if (!task) {
       return res.status(404).json({ message: 'Task not found or you are not the owner' });
@@ -100,7 +100,7 @@ exports.deleteTask = async (req, res) => {
   try {
     const { id } = req.params;
     
-    const result = await Task.deleteOne({ _id: id, userId: req.user.id });
+    const result = await Task.deleteOne({ _id: id, userId: req.userId }); // Corrected: Use req.userId
 
     if (result.deletedCount === 0) {
       return res.status(404).json({ message: 'Task not found or you are not the owner' });
