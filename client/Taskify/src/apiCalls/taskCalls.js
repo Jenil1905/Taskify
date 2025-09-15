@@ -36,10 +36,8 @@ export const createTask = async (taskData) => {
 };
 
 // Update an existing task.
-// The JWT is automatically sent in a cookie with this request.
 export const updateTask = async (taskId, updatedData) => {
     try {
-        // This URL is already correct: PATCH /tasks/:id
         const response = await api.patch(`/tasks/${taskId}`, updatedData);
         return response.data;
     } catch (error) {

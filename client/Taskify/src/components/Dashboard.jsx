@@ -104,7 +104,7 @@ export default function Dashboard() {
   const [sortBy, setSortBy] = useState('dueAsc');
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [loading, setLoading] = useState(true); 
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   const getTasks = useCallback(async () => {
@@ -154,8 +154,8 @@ export default function Dashboard() {
 
   const handleToggleDone = async (id, isDone) => {
     try {
-      const updatedTask = await updateTask(id, { isDone });
-      setTasks(prev => prev.map(t => (t.id === id ? updatedTask : t)));
+      await updateTask(id, { isDone });
+      await getTasks(); // Re-fetch to ensure UI is in sync
     } catch (err) {
       console.error(err);
       alert('Failed to update task.');
@@ -165,7 +165,7 @@ export default function Dashboard() {
   const handleDeleteTask = async (id) => {
     try {
       await deleteTask(id);
-      setTasks(prev => prev.filter(t => t.id !== id));
+      await getTasks(); // Re-fetch to ensure UI is in sync
     } catch (err) {
       console.error(err);
       alert('Failed to delete task.');
@@ -184,23 +184,23 @@ export default function Dashboard() {
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
-    const fd = new FormData(e.currentTarget);
+    const form = e.currentTarget;
     const payload = {
-      title: fd.get('title')?.toString().trim() || '',
-      category: fd.get('category')?.toString() || 'Work',
-      description: fd.get('notes')?.toString() || '',
-      isDone: fd.get('done') === 'on',
+      title: form.title.value.trim() || '',
+      category: form.category.value || 'Work',
+      description: form.description.value || '',
+      isDone: form.isDone.checked,
     };
     if (!payload.title) return;
 
     try {
       if (editing) {
-        const updatedTask = await updateTask(editing.id, payload);
-        setTasks(prev => prev.map(t => (t.id === updatedTask.id ? updatedTask : t)));
+        await updateTask(editing.id, payload);
       } else {
-        const newTask = await createTask(payload);
-        setTasks(prev => [...prev, newTask]);
+        await createTask(payload);
       }
+      
+      await getTasks(); // Re-fetch to ensure UI is in sync
       setFormOpen(false);
     } catch (err) {
       console.error(err);
@@ -434,7 +434,7 @@ export default function Dashboard() {
               <input
                 type="date"
                 name="due"
-                defaultValue={editing?.due ? editing.due.substring(0, 10) : ''}
+                defaultValue={editing?.createdAt ? editing.createdAt.substring(0, 10) : ''}
                 className="w-full px-3 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 outline-none"
               />
             </div>
@@ -442,22 +442,22 @@ export default function Dashboard() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
             <textarea
-              name="notes"
+              name="description" // Corrected name
               rows={3}
-              defaultValue={editing?.notes || ''}
+              defaultValue={editing?.description || ''} // Corrected value
               className="w-full px-3 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 outline-none"
               placeholder="Optional details..."
             />
           </div>
           <div className="flex items-center gap-2">
             <input
-              id="done"
-              name="done"
+              id="isDone" // Corrected id
+              name="isDone" // Corrected name
               type="checkbox"
-              defaultChecked={editing?.done || false}
+              defaultChecked={editing?.isDone || false} // Corrected value
               className="w-5 h-5 accent-indigo-600"
             />
-            <label htmlFor="done" className="text-sm text-gray-700">Mark as done</label>
+            <label htmlFor="isDone" className="text-sm text-gray-700">Mark as done</label>
           </div>
         </form>
       </Modal>

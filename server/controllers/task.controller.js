@@ -63,23 +63,37 @@ exports.createTask = async (req, res) => {
 };
 
 
+// src/controllers/task.controller.js
 exports.updateTask = async (req, res) => {
   try {
     const { id } = req.params;
-    const { isDone } = req.body;
+    const { title, description, category, isDone } = req.body; // Correctly destructure all possible fields
     
-    const task = await Task.findOne({ _id: id, userId: req.userId }); // Corrected: Use req.userId
+    // Find the task by its ID and the authenticated user's ID
+    const task = await Task.findOne({ _id: id, userId: req.userId });
 
     if (!task) {
       return res.status(404).json({ message: 'Task not found or you are not the owner' });
     }
 
+    // Update fields only if they exist in the request body
+    if (title !== undefined) {
+      task.title = title;
+    }
+    if (description !== undefined) {
+      task.description = description;
+    }
+    if (category !== undefined) {
+      task.category = category;
+    }
     if (isDone !== undefined) {
       task.isDone = isDone;
     }
 
+    // Save the updated task to the database
     const updatedTask = await task.save();
     
+    // Return the newly updated task object
     const formattedTask = {
       id: updatedTask._id,
       title: updatedTask.title,
@@ -91,6 +105,7 @@ exports.updateTask = async (req, res) => {
 
     res.status(200).json(formattedTask);
   } catch (err) {
+    console.error('Update Task Error:', err); // Log the actual error for better debugging
     res.status(500).json({ message: 'Server Error' });
   }
 };
