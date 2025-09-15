@@ -104,10 +104,9 @@ export default function Dashboard() {
   const [sortBy, setSortBy] = useState('dueAsc');
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [loading, setLoading] = useState(true); // Set to true initially to show loader on first load
+  const [loading, setLoading] = useState(true); 
   const navigate = useNavigate();
 
-  // Fetches tasks from the backend, memoized to prevent infinite loops
   const getTasks = useCallback(async () => {
     setLoading(true);
     try {
@@ -115,7 +114,6 @@ export default function Dashboard() {
       setTasks(data);
     } catch (err) {
       console.error(err);
-      // If API call fails (e.g., due to invalid token), redirect to login
       if (err.response && err.response.status === 401) {
         navigate('/login');
       }
@@ -124,7 +122,6 @@ export default function Dashboard() {
     }
   }, [activeCat, navigate]);
 
-  // Fetches tasks when the component mounts or activeCat changes
   useEffect(() => {
     getTasks();
   }, [getTasks]);
@@ -158,7 +155,6 @@ export default function Dashboard() {
   const handleToggleDone = async (id, isDone) => {
     try {
       const updatedTask = await updateTask(id, { isDone });
-      // Update local state with the new data from the backend
       setTasks(prev => prev.map(t => (t.id === id ? updatedTask : t)));
     } catch (err) {
       console.error(err);
@@ -169,7 +165,6 @@ export default function Dashboard() {
   const handleDeleteTask = async (id) => {
     try {
       await deleteTask(id);
-      // Update local state to remove the deleted task
       setTasks(prev => prev.filter(t => t.id !== id));
     } catch (err) {
       console.error(err);
@@ -194,18 +189,16 @@ export default function Dashboard() {
       title: fd.get('title')?.toString().trim() || '',
       category: fd.get('category')?.toString() || 'Work',
       description: fd.get('notes')?.toString() || '',
-      isDone: fd.get('isDone') === 'on',
+      isDone: fd.get('done') === 'on',
     };
     if (!payload.title) return;
 
     try {
       if (editing) {
         const updatedTask = await updateTask(editing.id, payload);
-        // Update local state with the new data from the backend
         setTasks(prev => prev.map(t => (t.id === updatedTask.id ? updatedTask : t)));
       } else {
         const newTask = await createTask(payload);
-        // Add the new task to the local state
         setTasks(prev => [...prev, newTask]);
       }
       setFormOpen(false);
@@ -216,7 +209,6 @@ export default function Dashboard() {
   };
 
   const handleLogout = () => {
-    // Redirect to login page and clear session
     window.location.href = '/login';
   };
 
