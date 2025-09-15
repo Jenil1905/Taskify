@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff, Mail, Lock, ArrowRight, CheckCircle, AlertCircle, LogIn } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { login } from '../apiCalls/authCalls'; // Import the login API function
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -8,7 +9,8 @@ const Login = () => {
     password: ''
   });
   const navigate = useNavigate();
-  //handle Signup
+
+  // Redirects to the signup page
   function handleSingup(){
     navigate('/signup');
   }
@@ -18,7 +20,7 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
-  // Handle input changes
+  // Handles input changes and clears errors as user types
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -26,7 +28,6 @@ const Login = () => {
       [name]: value
     }));
 
-    // Clear errors when user starts typing
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
@@ -35,7 +36,7 @@ const Login = () => {
     }
   };
 
-  // Validation function
+  // Performs client-side validation on form submission
   const validateForm = () => {
     const newErrors = {};
 
@@ -53,8 +54,8 @@ const Login = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Handle form submission
-  const handleSubmit = (e) => {
+  // Handles the form submission by calling the backend API
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!validateForm()) {
@@ -63,28 +64,32 @@ const Login = () => {
 
     setIsLoading(true);
 
-    // Simulate form submission without a backend
-    setTimeout(() => {
-      console.log('Login data:', {
-        email: formData.email,
-        password: formData.password,
-        rememberMe: rememberMe
-      });
+    try {
+      // Call the backend login API with user credentials
+      await login({ email: formData.email, password: formData.password });
       
+      // If login is successful, alert the user and redirect
       alert('Login successful!');
       
-      setIsLoading(false);
-      navigate('/dashboard')
+      // Force a hard page reload to ensure the cookie is set and the app state is fresh
+      window.location.href = '/dashboard';
 
-    }, 1500);
+    } catch (error) {
+      console.error('Login failed:', error.response?.data?.message || error.message);
+      setErrors({ 
+        general: error.response?.data?.message || 'Login failed. Please check your credentials.' 
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // Handle forgot password
+  // Placeholder for forgot password functionality
   const handleForgotPassword = () => {
     alert('Forgot password functionality would be implemented here');
   };
 
-  // Handle Google login (placeholder)
+  // Placeholder for Google login functionality
   const handleGoogleLogin = () => {
     alert('Google OAuth integration would be implemented here');
   };
