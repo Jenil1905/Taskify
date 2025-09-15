@@ -1,4 +1,3 @@
-Taskify
 Taskify is a full-stack task management application designed to help you stay organized, focused, and productive. 
 Built with the MERN stack (MongoDB, Express, React, Node.js), it allows users to register, log in, create tasks, categorize them, and mark them as complete.
 
