@@ -1,17 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import {
   Menu, X, Plus, Filter, Search, Folder, User, Target, CheckCircle2,
   Pencil, Trash2, LogOut, Layers, Tags, Calendar, Check, ChevronDown
 } from 'lucide-react';
-
-const initialTasks = [
-  { id: 1, title: 'Review project proposal', category: 'Work', done: false, due: '2025-09-16', notes: '' },
-  { id: 2, title: 'Team meeting at 2pm', category: 'Work', done: true, due: '2025-09-15', notes: '' },
-  { id: 3, title: 'Update documentation', category: 'Work', done: false, due: '2025-09-20', notes: '' },
-  { id: 4, title: 'Grocery shopping', category: 'Personal', done: false, due: '2025-09-15', notes: '' },
-  { id: 5, title: 'Call dentist', category: 'Personal', done: false, due: '2025-09-18', notes: '' },
-  { id: 6, title: 'Complete React assignment', category: 'Study', done: true, due: '2025-09-14', notes: '' },
-];
+import { useNavigate } from 'react-router-dom';
+import { fetchTasks, createTask, updateTask, deleteTask } from '../apiCalls/taskCalls';
 
 const categories = [
   { key: 'All', label: 'All Tasks', color: 'from-indigo-500 to-purple-600', border: 'border-indigo-500', icon: Layers },
@@ -59,7 +52,7 @@ function Modal({ open, onClose, title, children, actions }) {
 }
 
 function CategoryBadge({ category }) {
-  const cat = categories.find(c => c.key === category) || categories;
+  const cat = categories.find(c => c.key === category) || { label: category, color: 'from-gray-500 to-gray-600', icon: Tags };
   const Icon = cat.icon;
   return (
     <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-full bg-gradient-to-r ${cat.color} text-white`}>
@@ -73,19 +66,19 @@ function TaskRow({ task, onToggle, onEdit, onDelete }) {
     <div className="group flex items-center gap-3 p-3 bg-white rounded-xl border hover:shadow-md transition-all">
       <input
         type="checkbox"
-        checked={task.done}
-        onChange={() => onToggle(task.id)}
+        checked={task.isDone}
+        onChange={() => onToggle(task.id, !task.isDone)}
         className="w-5 h-5 accent-indigo-600 rounded"
       />
       <div className="flex-1">
-        <div className={`font-medium ${task.done ? 'text-gray-500 line-through' : 'text-gray-800'}`}>
+        <div className={`font-medium ${task.isDone ? 'text-gray-500 line-through' : 'text-gray-800'}`}>
           {task.title}
         </div>
         <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
           <CategoryBadge category={task.category} />
-          {task.due && (
+          {task.createdAt && (
             <span className="inline-flex items-center gap-1">
-              <Calendar size={14} /> {task.due}
+              <Calendar size={14} /> {new Date(task.createdAt).toLocaleDateString()}
             </span>
           )}
         </div>
@@ -104,34 +97,57 @@ function TaskRow({ task, onToggle, onEdit, onDelete }) {
 
 export default function Dashboard() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [tasks, setTasks] = useState(initialTasks);
+  const [tasks, setTasks] = useState([]);
   const [query, setQuery] = useState('');
   const [activeCat, setActiveCat] = useState('All');
   const [showDone, setShowDone] = useState(true);
   const [sortBy, setSortBy] = useState('dueAsc');
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [loading, setLoading] = useState(true); // Set to true initially to show loader on first load
+  const navigate = useNavigate();
 
-  const doneCount = tasks.filter(t => t.done).length;
+  // Fetches tasks from the backend, memoized to prevent infinite loops
+  const getTasks = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await fetchTasks(activeCat !== 'All' ? activeCat : '');
+      setTasks(data);
+    } catch (err) {
+      console.error(err);
+      // If API call fails (e.g., due to invalid token), redirect to login
+      if (err.response && err.response.status === 401) {
+        navigate('/login');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [activeCat, navigate]);
+
+  // Fetches tasks when the component mounts or activeCat changes
+  useEffect(() => {
+    getTasks();
+  }, [getTasks]);
+
+  const doneCount = tasks.filter(t => t.isDone).length;
   const progress = tasks.length ? (doneCount / tasks.length) * 100 : 0;
 
   const filtered = useMemo(() => {
     let arr = [...tasks];
-    if (activeCat !== 'All') arr = arr.filter(t => t.category === activeCat);
-    if (!showDone) arr = arr.filter(t => !t.done);
+    if (!showDone) arr = arr.filter(t => !t.isDone);
     if (query.trim()) {
       const q = query.toLowerCase();
       arr = arr.filter(t => t.title.toLowerCase().includes(q) || t.category.toLowerCase().includes(q));
     }
     if (sortBy === 'dueAsc') {
-      arr.sort((a, b) => (a.due || '').localeCompare(b.due || ''));
+      arr.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
     } else if (sortBy === 'dueDesc') {
-      arr.sort((a, b) => (b.due || '').localeCompare(a.due || ''));
+      arr.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
     } else if (sortBy === 'title') {
       arr.sort((a, b) => a.title.localeCompare(b.title));
     }
     return arr;
-  }, [tasks, activeCat, showDone, query, sortBy]);
+  }, [tasks, showDone, query, sortBy]);
 
   const countsByCat = useMemo(() => {
     const res = { All: tasks.length };
@@ -139,43 +155,70 @@ export default function Dashboard() {
     return res;
   }, [tasks]);
 
-  function toggleDone(id) {
-    setTasks(prev => prev.map(t => (t.id === id ? { ...t, done: !t.done } : t)));
-  }
+  const handleToggleDone = async (id, isDone) => {
+    try {
+      const updatedTask = await updateTask(id, { isDone });
+      // Update local state with the new data from the backend
+      setTasks(prev => prev.map(t => (t.id === id ? updatedTask : t)));
+    } catch (err) {
+      console.error(err);
+      alert('Failed to update task.');
+    }
+  };
 
-  function handleDelete(id) {
-    setTasks(prev => prev.filter(t => t.id !== id));
-  }
+  const handleDeleteTask = async (id) => {
+    try {
+      await deleteTask(id);
+      // Update local state to remove the deleted task
+      setTasks(prev => prev.filter(t => t.id !== id));
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete task.');
+    }
+  };
 
-  function openCreate() {
+  const openCreate = () => {
     setEditing(null);
     setFormOpen(true);
-  }
+  };
 
-  function openEdit(task) {
+  const openEdit = (task) => {
     setEditing(task);
     setFormOpen(true);
-  }
+  };
 
-  function handleSubmit(e) {
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const payload = {
       title: fd.get('title')?.toString().trim() || '',
       category: fd.get('category')?.toString() || 'Work',
-      due: fd.get('due')?.toString() || '',
-      notes: fd.get('notes')?.toString() || '',
-      done: fd.get('done') === 'on',
+      description: fd.get('notes')?.toString() || '',
+      isDone: fd.get('isDone') === 'on',
     };
     if (!payload.title) return;
-    if (editing) {
-      setTasks(prev => prev.map(t => (t.id === editing.id ? { ...t, ...payload } : t)));
-    } else {
-      const nextId = Math.max(0, ...tasks.map(t => t.id)) + 1;
-      setTasks(prev => [...prev, { id: nextId, ...payload }]);
+
+    try {
+      if (editing) {
+        const updatedTask = await updateTask(editing.id, payload);
+        // Update local state with the new data from the backend
+        setTasks(prev => prev.map(t => (t.id === updatedTask.id ? updatedTask : t)));
+      } else {
+        const newTask = await createTask(payload);
+        // Add the new task to the local state
+        setTasks(prev => [...prev, newTask]);
+      }
+      setFormOpen(false);
+    } catch (err) {
+      console.error(err);
+      alert(`Failed to ${editing ? 'update' : 'create'} task.`);
     }
-    setFormOpen(false);
-  }
+  };
+
+  const handleLogout = () => {
+    // Redirect to login page and clear session
+    window.location.href = '/login';
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -194,7 +237,7 @@ export default function Dashboard() {
             <button className="px-4 py-2 rounded-lg bg-white text-indigo-600 hover:bg-gray-100 flex items-center gap-2" onClick={openCreate}>
               <Plus size={18} /> Add Task
             </button>
-            <button className="px-3 py-2 rounded-lg hover:bg-white/10 flex items-center gap-2">
+            <button className="px-3 py-2 rounded-lg hover:bg-white/10 flex items-center gap-2" onClick={handleLogout}>
               <LogOut size={18} /> Logout
             </button>
           </div>
@@ -311,7 +354,11 @@ export default function Dashboard() {
 
             {/* Task list */}
             <div className="bg-white rounded-2xl shadow-md border p-4">
-              {filtered.length === 0 ? (
+              {loading ? (
+                <div className="text-center py-16">
+                  <p className="text-gray-800 font-medium">Loading tasks...</p>
+                </div>
+              ) : filtered.length === 0 ? (
                 <div className="text-center py-16">
                   <div className="mx-auto w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center mb-3">
                     <Tags className="text-indigo-600" size={20} />
@@ -331,9 +378,9 @@ export default function Dashboard() {
                     <TaskRow
                       key={t.id}
                       task={t}
-                      onToggle={toggleDone}
+                      onToggle={handleToggleDone}
                       onEdit={openEdit}
-                      onDelete={handleDelete}
+                      onDelete={handleDeleteTask}
                     />
                   ))}
                 </div>
@@ -366,7 +413,7 @@ export default function Dashboard() {
           </>
         }
       >
-        <form id="task-form" onSubmit={handleSubmit} className="space-y-4">
+        <form id="task-form" onSubmit={handleFormSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
             <input
@@ -395,7 +442,7 @@ export default function Dashboard() {
               <input
                 type="date"
                 name="due"
-                defaultValue={editing?.due || ''}
+                defaultValue={editing?.due ? editing.due.substring(0, 10) : ''}
                 className="w-full px-3 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 outline-none"
               />
             </div>
